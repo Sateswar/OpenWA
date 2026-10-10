@@ -66,7 +66,7 @@ function sanitizeEnv(env = process.env) {
 function planSteps(root, env = process.env) {
   const cleanEnv = sanitizeEnv(env);
   const steps = [];
-  if (fs.existsSync(path.join(root, 'dashboard'))) {
+  if (fs.existsSync(path.join(root, 'dashboard', 'package.json'))) {
     steps.push({
       name: 'dashboard dependencies (npm ci)',
       command: 'npm ci',

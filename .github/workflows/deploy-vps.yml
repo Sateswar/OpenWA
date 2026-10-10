@@ -36,9 +36,9 @@ jobs:
 
       - name: Package Build Artifacts
         run: |
-          mkdir -p release-package
+          mkdir -p release-package/dashboard
           cp -r dist release-package/
-          cp -r dashboard/dist release-package/dashboard-dist
+          cp -r dashboard/dist release-package/dashboard/dist
           cp -r scripts release-package/
           cp package.json package-lock.json release-package/
           cp .env.minimal release-package/.env.example
@@ -63,7 +63,7 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_PORT: ${{ secrets.VPS_PORT || '22' }}
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "mkdir -p /opt/openwa/data /opt/openwa/releases /opt/openwa/dashboard"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "mkdir -p /opt/openwa/data /opt/openwa/releases"
 
       - name: Upload Artifacts to VPS
         env:
@@ -101,13 +101,6 @@ jobs:
 
             echo "📦 Extracting new release artifacts..."
             tar -xzf releases/openwa-build-artifacts.tar.gz -C /opt/openwa/
-
-            # Move dashboard build cleanly
-            if [ -d "dashboard-dist" ]; then
-              rm -rf dashboard/dist
-              mkdir -p dashboard
-              mv dashboard-dist dashboard/dist
-            fi
 
             # Create default .env if it does not exist
             if [ ! -f .env ]; then
