@@ -108,7 +108,8 @@ jobs:
               echo "✅ Created initial .env configuration"
             fi
 
-            echo "📥 Installing production dependencies..."
+            echo "📥 Cleaning previous node_modules and installing production dependencies..."
+            rm -rf node_modules
             npm ci --omit=dev --ignore-scripts
             node scripts/postinstall.js
 
