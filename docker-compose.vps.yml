@@ -1,0 +1,28 @@
+services:
+  openwa-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: openwa-api
+    restart: unless-stopped
+    ports:
+      - "2785:2785"
+    volumes:
+      - openwa_data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=2785
+      - DATABASE_TYPE=sqlite
+      - DATABASE_NAME=/app/data/openwa.sqlite
+      - DATABASE_SYNCHRONIZE=true
+      - STORAGE_TYPE=local
+      - STORAGE_LOCAL_PATH=/app/data/media
+      - SESSION_DATA_PATH=/app/data/sessions
+      - REDIS_ENABLED=false
+      - QUEUE_ENABLED=false
+      - SERVE_DASHBOARD=true
+    shm_size: '2gb'
+
+volumes:
+  openwa_data:
+    driver: local
