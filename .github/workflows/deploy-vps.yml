@@ -79,41 +79,61 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_PORT: ${{ secrets.VPS_PORT || '22' }}
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" << 'EOF'
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'bash -s' << 'EOF'
             set -e
+
+            # Source user environments so node, npm, nvm are available in non-interactive SSH
+            [ -s "$HOME/.nvm/nvm.sh" ] && source "$HOME/.nvm/nvm.sh"
+            [ -s "$HOME/.profile" ] && source "$HOME/.profile"
+            [ -s "$HOME/.bashrc" ] && source "$HOME/.bashrc"
+            export PATH=$PATH:/usr/local/bin:/usr/bin:/bin:$HOME/.local/bin
+
+            # Check if Node.js is installed on VPS, install if missing
+            if ! command -v node > /dev/null 2>&1; then
+              echo "⚠️ Node.js not detected. Installing Node.js 22 LTS..."
+              curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+              sudo apt-get install -y nodejs build-essential
+            fi
+
+            echo "Using Node version: $(node -v) and NPM: $(npm -v)"
+
             cd /opt/openwa
 
             echo "📦 Extracting new release artifacts..."
             tar -xzf releases/openwa-build-artifacts.tar.gz -C /opt/openwa/
 
-            # Ensure dashboard/dist folder structure is mapped
-            mkdir -p dashboard
-            cp -r dashboard-dist/* dashboard/dist/ 2>/dev/null || cp -r dashboard-dist dashboard/dist
+            # Move dashboard build cleanly
+            if [ -d "dashboard-dist" ]; then
+              rm -rf dashboard/dist
+              mkdir -p dashboard
+              mv dashboard-dist dashboard/dist
+            fi
 
-            # Copy default .env if it does not exist
+            # Create default .env if it does not exist
             if [ ! -f .env ]; then
               cp .env.example .env
-              echo "Created initial .env configuration"
+              echo "✅ Created initial .env configuration"
             fi
 
             echo "📥 Installing production dependencies..."
             npm ci --omit=dev --ignore-scripts
             node scripts/postinstall.js
 
-            echo "🌐 Installing Chrome for Puppeteer if needed..."
+            echo "🌐 Installing Chrome for Puppeteer..."
             npx puppeteer browsers install chrome
 
-            echo "🔄 Restarting OpenWA service via PM2..."
-            if command -v pm2 > /dev/null; then
-              pm2 describe openwa > /dev/null 2>&1 && pm2 restart openwa || pm2 start dist/main.js --name openwa
-              pm2 save
-            else
-              echo "PM2 not found. Installing PM2 globally..."
+            echo "🔄 Managing OpenWA process via PM2..."
+            if ! command -v pm2 > /dev/null 2>&1; then
+              echo "Installing PM2 globally..."
               npm install -g pm2
-              pm2 start dist/main.js --name openwa
-              pm2 save
-              pm2 startup || true
             fi
 
-            echo "✅ Deployment completed successfully!"
+            # Restart or start application with PM2
+            pm2 describe openwa > /dev/null 2>&1 && pm2 restart openwa || pm2 start dist/main.js --name openwa --time
+            pm2 save
+
+            echo "📊 PM2 Process Status:"
+            pm2 status openwa
+
+            echo "🎉 Deployment completed successfully!"
           EOF
